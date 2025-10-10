@@ -143,8 +143,61 @@ function risk(subject) {
 function todaySuggestion(subject) {
     const est = estimateHoursRemaining(subject).mid;
     const r = risk(subject).color;
-    const weight = r === 'red' ? 1.6 : r === 'amber' ? 1.2 : 1.0;
-    return +Math.min(est, weight * state.capacityDaily).toFixed(1);
+
+    // Pesos más pronunciados para la distribución por estado
+    const weight = r === 'red' ? 2.0 : r === 'amber' ? 1.3 : 0.7;
+
+    // Calcular la sugerencia base
+    let suggestion = Math.min(est, weight * state.capacityDaily);
+
+    // Asegurar que las materias rojas tengan al menos un mínimo
+    if (r === 'red' && suggestion < 0.5) {
+        suggestion = 0.5;
+    }
+
+    return +suggestion.toFixed(1);
+}
+
+// Nueva función para distribuir las horas de hoy de manera proporcional al riesgo
+function distributeHoursToday() {
+    const subjects = state.subjects;
+    const totalCapacity = state.capacityDaily;
+
+    if (subjects.length === 0) return [];
+
+    // Calcular pesos basados en el riesgo
+    const riskWeights = {
+        'red': 3.0,
+        'amber': 1.5,
+        'green': 1.0
+    };
+
+    // Calcular el total de pesos
+    let totalWeight = 0;
+    const subjectWeights = subjects.map(subject => {
+        const r = risk(subject).color;
+        const weight = riskWeights[r];
+        totalWeight += weight;
+        return { subject, weight, risk: r };
+    });
+
+    // Distribuir horas proporcionalmente
+    const distributedHours = subjectWeights.map(item => {
+        const proportion = item.weight / totalWeight;
+        const hours = proportion * totalCapacity;
+
+        // Limitar por las horas estimadas restantes
+        const est = estimateHoursRemaining(item.subject).mid;
+        const finalHours = Math.min(hours, est);
+
+        return {
+            subject: item.subject,
+            hours: +finalHours.toFixed(1),
+            risk: item.risk
+        };
+    });
+
+    return distributedHours;
 }
 function shortStatus(s) {
     const t = todaySuggestion(s);
@@ -189,9 +242,23 @@ function render() {
         examList.appendChild(li);
     });
 
-    // Hoy total sugerido
-    const total = state.subjects.reduce((acc, s) => acc + Math.min(todaySuggestion(s), state.capacityDaily), 0);
+    // Hoy total sugerido usando distribución proporcional por riesgo
+    const distributedHours = distributeHoursToday();
+    const total = distributedHours.reduce((acc, item) => acc + item.hours, 0);
     todayTotalEl.textContent = `${total.toFixed(1)} h`;
+
+    // Actualizar las sugerencias de hoy con la distribución proporcional
+    distributedHours.forEach(item => {
+        // Actualizar la sugerencia de hoy para esta materia
+        const subjectEl = subjectsEl.querySelector(`[data-id="${item.subject.id}"]`);
+        if (subjectEl) {
+            const todayText = subjectEl.querySelector('.today-text');
+            if (todayText) {
+                const icon = item.risk === 'red' ? '🔻' : item.risk === 'amber' ? '➖' : '✅';
+                todayText.textContent = `Hoy: ${item.hours.toFixed(1)} h  ·  ${icon}`;
+            }
+        }
+    });
 
     // Lista materias
     subjectsEl.innerHTML = '';
@@ -208,6 +275,7 @@ function partsText(s) {
 function subjectRow(subject) {
     const tpl = byId('subjectRow').content.cloneNode(true);
     const card = tpl.querySelector('.subject');
+    card.setAttribute('data-id', subject.id); // Agregar ID para identificarla
 
     const dot = tpl.querySelector('.risk-dot');
     const nm = tpl.querySelector('.name');
