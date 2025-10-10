@@ -5,6 +5,9 @@ const LS_KEY = 'quantaprepV1';
 const OPFS_FILE = 'quanta-respaldo.json';
 let opfsAvailable = !!(navigator.storage && navigator.storage.getDirectory);
 
+// Archivo JSON local para guardar datos
+const LOCAL_DATA_FILE = 'data.json';
+
 // ======= Defaults y Estado =======
 const DEFAULTS = {
     capacityDaily: 2.0,
@@ -74,11 +77,81 @@ async function opfsRead() {
     } catch { return null; }
 }
 
+// ======= Archivo JSON local helpers =======
+async function saveToLocalFile() {
+    try {
+        const json = JSON.stringify(state, null, 2); // Pretty print con 2 espacios
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = LOCAL_DATA_FILE;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log('Datos guardados en archivo local:', LOCAL_DATA_FILE);
+        return true;
+    } catch (error) {
+        console.error('Error al guardar en archivo local:', error);
+        return false;
+    }
+}
+
+async function loadFromLocalFile() {
+    return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        input.onchange = (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                resolve(null);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    resolve(data);
+                } catch (error) {
+                    console.error('Error al cargar archivo:', error);
+                    alert('Error: El archivo no es un JSON válido');
+                    resolve(null);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        input.click();
+    });
+}
+
+
 // ======= Carga inicial =======
 (async function init() {
-    // 1) Intentar OPFS
+    // 1) Intentar cargar desde archivo JSON local
     let loaded = false;
-    if (opfsAvailable) {
+    try {
+        const response = await fetch(LOCAL_DATA_FILE);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data.subjects)) {
+                state = migrate(data);
+                loaded = true;
+                setBackupInfo('Cargado desde archivo local data.json');
+            }
+        }
+    } catch (error) {
+        console.log('No se encontró archivo data.json local, continuando con otros métodos...');
+    }
+
+    // 2) Si no hubo archivo JSON válido, intentar OPFS
+    if (!loaded && opfsAvailable) {
         const data = await opfsRead();
         if (data && Array.isArray(data.subjects)) {
             state = migrate(data);
@@ -87,11 +160,11 @@ async function opfsRead() {
         } else {
             setBackupInfo('Creando respaldo local (OPFS) al guardar cambios…');
         }
-    } else {
+    } else if (!loaded) {
         setBackupInfo('Respaldo en localStorage (tu navegador).');
     }
 
-    // 2) Si no hubo OPFS válido, intentar localStorage
+    // 3) Si no hubo OPFS válido, intentar localStorage
     if (!loaded) {
         const raw = localStorage.getItem(LS_KEY);
         if (raw) {
@@ -115,6 +188,9 @@ async function saveState() {
     const json = JSON.stringify(state);
     localStorage.setItem(LS_KEY, json);
     if (opfsAvailable) { await opfsWrite(json); }
+
+    // Guardar automáticamente en archivo JSON local
+    await saveToLocalFile();
 }
 
 // ======= Modelo de cálculo =======
@@ -474,6 +550,8 @@ capacityInput.addEventListener('change', () => {
     const v = Number(capacityInput.value);
     if (isFinite(v) && v >= 0) { state.capacityDaily = v; saveState(); render(); }
 });
+
+
 function setBackupInfo(txt) {
     // Don't show backup info to keep it simple for kids
     byId('backupInfo').textContent = '';

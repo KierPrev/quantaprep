@@ -245,6 +245,7 @@ button:focus-visible {
     font-size: 15px;
 }
 
+
 /* Subject cards */
 .subject {
     padding: var(--space-lg);
@@ -474,31 +475,229 @@ select:focus {
     flex: 1;
 }
 
-/* Responsive */
+/* Responsive - Mobile First Improvements */
 @media (max-width: 768px) {
+
+    /* Base mobile improvements */
+    html,
+    body {
+        font-size: 16px;
+        /* Larger base font for mobile */
+    }
+
     .topbar {
-        padding: var(--space-md) var(--space-lg);
+        padding: var(--space-lg) var(--space-lg);
+        flex-direction: column;
+        gap: var(--space-md);
+        text-align: center;
+    }
+
+    .topbar h1 {
+        font-size: 20px;
+        /* Slightly smaller for mobile */
+        text-align: center;
     }
 
     .card {
-        margin: 0 var(--space-lg) var(--space-md);
+        margin: 0 var(--space-md) var(--space-lg);
+        padding: var(--space-xl);
+    }
+
+    /* Larger touch targets */
+    button {
+        padding: var(--space-md) var(--space-xl);
+        font-size: 16px;
+        min-height: 44px;
+        /* Minimum touch target size */
+    }
+
+    .actions .quick {
+        padding: var(--space-md) var(--space-lg);
+        font-size: 16px;
+        min-height: 44px;
+        flex: 1;
+        /* Make quick buttons take equal space */
+    }
+
+    .actions {
+        gap: var(--space-md);
+        justify-content: space-between;
+    }
+
+    /* Improved exam list for mobile */
+    .exam-list li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-sm);
+        padding: var(--space-lg) 0;
+    }
+
+    .exam-item-left {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .dot {
+        width: 12px;
+        height: 12px;
+        /* Larger dots for visibility */
+    }
+
+    /* Today section improvements */
+    .today {
+        flex-direction: column;
+        gap: var(--space-lg);
+        align-items: center;
+        text-align: center;
+        padding-top: var(--space-lg);
+    }
+
+    .today .cap input {
+        width: 100px;
+        padding: var(--space-md);
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    /* Subject cards mobile improvements */
+    .subject {
+        padding: var(--space-xl);
+        margin: 0 var(--space-md) var(--space-lg);
+    }
+
+    .subject-head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+        margin-bottom: var(--space-lg);
+    }
+
+    .subject-head .left {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .risk-dot {
+        width: 16px;
+        height: 16px;
+        /* Larger risk dots */
+    }
+
+    .meta-line {
+        flex-direction: column;
+        gap: var(--space-sm);
+        text-align: left;
+    }
+
+    /* Form improvements */
+    .grid2 {
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    input,
+    select {
+        padding: var(--space-lg);
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .exact-add input {
+        width: 100px;
+        min-height: 44px;
+    }
+
+    /* Parts list mobile improvements */
+    .part-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
         padding: var(--space-lg);
     }
 
-    .grid2 {
-        grid-template-columns: 1fr;
+    .part-row input[type="number"] {
+        width: 100%;
+    }
+
+    /* Modal improvements */
+    dialog {
+        max-width: 95vw;
+        margin: var(--space-lg);
+    }
+
+    .sheet-head {
+        padding: var(--space-lg);
+        flex-direction: column;
+        gap: var(--space-md);
+        text-align: center;
+    }
+
+    .sheet-body {
+        padding: var(--space-lg);
         gap: var(--space-lg);
     }
 
-    .part-row {
-        grid-template-columns: 1fr;
+    /* Center content on mobile */
+    .stack {
+        justify-items: center;
+    }
+
+    /* Larger text for better readability */
+    h1 {
+        font-size: 22px;
+    }
+
+    h2 {
+        font-size: 18px;
+    }
+
+    h3 {
+        font-size: 16px;
+    }
+
+    .small {
+        font-size: 14px;
+    }
+
+    /* Improved spacing */
+    .segments {
+        gap: 4px;
+    }
+
+    .segment {
+        height: 8px;
+        /* Thicker segments */
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    .card {
+        margin: 0 var(--space-sm) var(--space-md);
+        padding: var(--space-lg);
+    }
+
+    .subject {
+        padding: var(--space-lg);
+        margin: 0 var(--space-sm) var(--space-md);
+    }
+
+    .topbar {
+        padding: var(--space-md) var(--space-sm);
+    }
+
+    .actions {
+        flex-direction: column;
         gap: var(--space-sm);
     }
 
-    .today {
-        flex-direction: column;
-        gap: var(--space-md);
-        align-items: flex-start;
+    .actions .quick {
+        width: 100%;
+    }
+
+    /* Even larger touch targets for very small screens */
+    button {
+        min-height: 48px;
+        padding: var(--space-lg) var(--space-xl);
     }
 }
 
