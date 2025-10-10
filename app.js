@@ -77,58 +77,49 @@ async function opfsRead() {
     } catch { return null; }
 }
 
-// ======= Archivo JSON local helpers =======
-async function saveToLocalFile() {
+// ======= Servidor JSON helpers =======
+async function saveToServer() {
     try {
-        const json = JSON.stringify(state, null, 2); // Pretty print con 2 espacios
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        const response = await fetch('/api/save-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(state)
+        });
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = LOCAL_DATA_FILE;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        console.log('Datos guardados en archivo local:', LOCAL_DATA_FILE);
-        return true;
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Datos guardados en servidor:', result.message);
+            return true;
+        } else {
+            console.error('Error del servidor al guardar datos');
+            return false;
+        }
     } catch (error) {
-        console.error('Error al guardar en archivo local:', error);
+        console.error('Error al guardar en servidor:', error);
         return false;
     }
 }
 
-async function loadFromLocalFile() {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
+async function loadFromServer() {
+    try {
+        const response = await fetch('/api/load-data');
 
-        input.onchange = (event) => {
-            const file = event.target.files[0];
-            if (!file) {
-                resolve(null);
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    resolve(data);
-                } catch (error) {
-                    console.error('Error al cargar archivo:', error);
-                    alert('Error: El archivo no es un JSON válido');
-                    resolve(null);
-                }
-            };
-            reader.readAsText(file);
-        };
-
-        input.click();
-    });
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else if (response.status === 404) {
+            console.log('No se encontraron datos en el servidor');
+            return null;
+        } else {
+            console.error('Error del servidor al cargar datos');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error al cargar desde servidor:', error);
+        return null;
+    }
 }
 
 
@@ -189,8 +180,8 @@ async function saveState() {
     localStorage.setItem(LS_KEY, json);
     if (opfsAvailable) { await opfsWrite(json); }
 
-    // Guardar automáticamente en archivo JSON local
-    await saveToLocalFile();
+    // Guardar automáticamente en el servidor
+    await saveToServer();
 }
 
 // ======= Modelo de cálculo =======
