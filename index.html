@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QuantaPrep — Panel de riesgo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <h1>📚 QuantaPrep - Mis exámenes</h1>
+    <div class="actions">
+      <button id="btn-add" class="primary">+ Nueva</button>
+    </div>
+  </header>
+
+  <section id="summary" class="card">
+    <h2>📅 Próximos</h2>
+    <ul id="examList" class="exam-list"></ul>
+    <div class="today">
+      <span>Hoy: <strong id="todayTotal">0.0 h</strong></span>
+      <label class="cap">
+        Horas al día:
+        <input id="capacityInput" type="number" step="0.25" min="0" />
+        h
+      </label>
+    </div>
+    <p id="backupInfo" class="small muted"></p>
+  </section>
+
+  <main id="subjects" class="stack"></main>
+
+  <!-- Modal Detalle Materia -->
+  <dialog id="detailModal">
+    <form method="dialog" class="sheet">
+      <header class="sheet-head">
+        <h3 id="detailTitle">Editar</h3>
+        <div class="gap"></div>
+        <button value="cancel" class="ghost">Cerrar</button>
+      </header>
+
+      <div class="sheet-body">
+        <div class="grid2">
+          <label>Nombre
+            <input id="m-name" type="text" required />
+          </label>
+          <label>Fecha (dd-mm-aa)
+            <input id="m-date" type="text" placeholder="dd-mm-aa" required />
+          </label>
+        </div>
+
+        <div class="grid2">
+          <label>Estudié
+            <div class="exact-add">
+              <input id="m-time-val" type="number" step="0.25" min="0" placeholder="40" />
+              <select id="m-time-unit">
+                <option value="min">min</option>
+                <option value="h">h</option>
+              </select>
+              <button type="button" id="m-time-add" class="primary">+</button>
+            </div>
+          </label>
+
+          <label>Falta
+            <div id="m-eta" class="eta">—</div>
+          </label>
+        </div>
+
+        <div class="parts-head">
+          <strong>Temas</strong>
+          <div class="parts-total">
+            <button type="button" id="m-parts-dec" class="ghost">–</button>
+            <span id="m-parts-count">0</span>
+            <button type="button" id="m-parts-inc" class="ghost">+</button>
+          </div>
+        </div>
+
+        <ul id="partsList" class="parts-list"></ul>
+
+        <div class="parts-actions">
+          <button type="button" id="addPart" class="ghost">+ Tema</button>
+          <div class="right">
+            <button type="button" id="deleteSubject" class="danger">Borrar</button>
+            <button type="submit" id="saveSubject" class="primary">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Nueva Materia (simplificado) -->
+  <dialog id="newModal">
+    <form method="dialog" class="sheet">
+      <header class="sheet-head">
+        <h3>Nuevo</h3>
+        <div class="gap"></div>
+        <button value="cancel" class="ghost">Cerrar</button>
+      </header>
+      <div class="sheet-body">
+        <div class="grid2">
+          <label>Nombre
+            <input id="n-name" type="text" required />
+          </label>
+          <label>Fecha (dd-mm-aa)
+            <input id="n-date" type="text" placeholder="dd-mm-aa" required />
+          </label>
+        </div>
+        <div class="parts-head">
+          <strong>Temas</strong>
+          <div class="parts-total">
+            <button type="button" id="n-parts-dec" class="ghost">–</button>
+            <span id="n-parts-count">4</span>
+            <button type="button" id="n-parts-inc" class="ghost">+</button>
+          </div>
+        </div>
+        <p class="small muted">Podés cambiar nombres después.</p>
+        <div class="right">
+          <button value="cancel" class="ghost">Cancelar</button>
+          <button id="createSubject" class="primary">Crear</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="subjectRow">
+    <section class="card subject">
+      <header class="subject-head">
+        <div class="left">
+          <span class="risk-dot"></span>
+          <h3 class="name"></h3>
+        </div>
+        <button class="menu ghost">⋯</button>
+      </header>
+      <div class="meta">
+        <div class="segments" aria-label="progreso por partes"></div>
+        <div class="meta-line">
+          <span class="parts-text"></span>
+          <span class="today-text"></span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="quick ghost" data-h="0.5">+0.5h</button>
+        <button class="quick ghost" data-h="1">+1h</button>
+      </div>
+    </section>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
