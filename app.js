@@ -180,10 +180,18 @@ function estimateHoursRemaining(subject) {
     return { lo: +(rem * 0.85).toFixed(1), mid: +rem.toFixed(1), hi: +(rem * 1.25).toFixed(1) };
 }
 
-function risk(subject) {
+function risk(subject, distributedHours = null) {
     const d = Math.max(1, daysUntil(subject.examISO));
     const est = estimateHoursRemaining(subject).mid;
-    const cap = Math.max(0.25, state.capacityDaily);
+
+    // Use distributed hours if provided, otherwise fall back to daily capacity
+    let cap;
+    if (distributedHours !== null && distributedHours > 0) {
+        cap = distributedHours;
+    } else {
+        cap = Math.max(0.25, state.capacityDaily);
+    }
+
     const R = est / (d * cap);
     let color = 'green'; if (R > 1.2) color = 'red'; else if (R > 0.8) color = 'amber';
     return { R, color };
@@ -196,6 +204,7 @@ function distributeHoursToday() {
     const riskWeights = { 'red': 3.0, 'amber': 1.5, 'green': 1.0 };
     let totalW = 0;
     const items = subjects.map(s => {
+        // For initial distribution, use total capacity since we don't have distributed hours yet
         const r = risk(s).color;
         const w = riskWeights[r];
         totalW += w;
@@ -222,7 +231,7 @@ function shortStatus(s) {
     const distributed = distributeHoursToday();
     const it = distributed.find(x => x.subject.id === s.id);
     const hours = it ? it.hours : 0;
-    const r = risk(s).color;
+    const r = risk(s, hours).color;
     const icon = r === 'red' ? '🔻' : r === 'amber' ? '➖' : '✅';
     return `Hoy: ${hours.toFixed(1)} h · ${icon}`;
 }
@@ -249,7 +258,11 @@ let currentId = null;
 
 function sortSubjects(a, b) {
     const rank = { red: 0, amber: 1, green: 2 };
-    const ra = rank[risk(a).color], rb = rank[risk(b).color];
+    // Get distributed hours for correct risk calculation
+    const distributed = distributeHoursToday();
+    const hoursA = distributed.find(x => x.subject.id === a.id)?.hours || 0;
+    const hoursB = distributed.find(x => x.subject.id === b.id)?.hours || 0;
+    const ra = rank[risk(a, hoursA).color], rb = rank[risk(b, hoursB).color];
     if (ra !== rb) return ra - rb;
     return daysUntil(a.examISO) - daysUntil(b.examISO);
 }
@@ -261,11 +274,14 @@ function render() {
     // resumen exámenes
     if (examList) {
         examList.innerHTML = '';
+        const distributed = distributeHoursToday();
         state.subjects.forEach(s => {
             const li = document.createElement('li');
             const d = daysUntil(s.examISO);
             const est = estimateHoursRemaining(s);
-            const color = risk(s).color;
+            const it = distributed.find(x => x.subject.id === s.id);
+            const hours = it ? it.hours : 0;
+            const color = risk(s, hours).color;
             li.innerHTML = `
         <div class="exam-item-left">
           <span class="dot ${color === 'red' ? 'red' : color === 'amber' ? 'amber' : 'green'}"></span>
@@ -301,7 +317,12 @@ function subjectRow(subject) {
     const dot = tpl.querySelector('.risk-dot');
     const nm = tpl.querySelector('.name');
     nm.textContent = subject.name;
-    const r = risk(subject).color;
+
+    // Get distributed hours for this subject to calculate correct risk
+    const distributed = distributeHoursToday();
+    const it = distributed.find(x => x.subject.id === subject.id);
+    const hours = it ? it.hours : 0;
+    const r = risk(subject, hours).color;
     dot.classList.add(r === 'red' ? 'risk-red' : r === 'amber' ? 'risk-amber' : 'risk-green');
 
     // segmentos con parcial
