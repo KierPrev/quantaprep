@@ -42,9 +42,16 @@ const parseDDMMYY = (str) => {
     const y = parseInt(parts[2], 10);
     const year = parts[2].length === 2 ? 2000 + y : y;
     if (![day, month, year].every(Number.isFinite)) return null;
+
+    // Create date in local timezone and format as YYYY-MM-DD without timezone conversion
     const dt = new Date(year, month, day);
     if (dt.getFullYear() !== year || dt.getMonth() !== month || dt.getDate() !== day) return null;
-    return dt.toISOString().split('T')[0];
+
+    // Format as YYYY-MM-DD without timezone issues
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
 };
 
 const daysUntil = (iso) => {
