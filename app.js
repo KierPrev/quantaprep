@@ -10,7 +10,7 @@ const API_SAVE = '/api/save-data';
 const DEFAULTS = {
     capacityDaily: 2.0,
     typeTimes: { 'TP': 1.5, 'Problemas': 1.2, 'Teoría': 1.0, 'Lectura': 0.8, 'Otro': 1.0 },
-    difWeights: { baja: 1.0, media: 1.3, alta: 1.7 }
+    difWeights: { baja: 1.0, media: 1.5, alta: 2.0 }
 };
 
 let state = {
