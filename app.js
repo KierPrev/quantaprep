@@ -180,7 +180,7 @@ async function saveState() {
     localStorage.setItem(LS_KEY, json);
     if (opfsAvailable) { await opfsWrite(json); }
 
-    // Guardar automáticamente en el servidor
+    // Guardar automáticamente en el servidor (y archivo JSON local)
     await saveToServer();
 }
 
@@ -267,10 +267,13 @@ function distributeHoursToday() {
     return distributedHours;
 }
 function shortStatus(s) {
-    const t = todaySuggestion(s);
+    // Usar la distribución proporcional en lugar del cálculo individual
+    const distributedHours = distributeHoursToday();
+    const subjectHours = distributedHours.find(item => item.subject.id === s.id);
+    const hours = subjectHours ? subjectHours.hours : 0;
     const r = risk(s).color;
     const icon = r === 'red' ? '🔻' : r === 'amber' ? '➖' : '✅';
-    return `Hoy: ${t.toFixed(1)} h  ·  ${icon}`;
+    return `Hoy: ${hours.toFixed(1)} h  ·  ${icon}`;
 }
 function sortSubjects(a, b) {
     const rank = { red: 0, amber: 1, green: 2 };
@@ -313,19 +316,6 @@ function render() {
     const distributedHours = distributeHoursToday();
     const total = distributedHours.reduce((acc, item) => acc + item.hours, 0);
     todayTotalEl.textContent = `${total.toFixed(1)} h`;
-
-    // Actualizar las sugerencias de hoy con la distribución proporcional
-    distributedHours.forEach(item => {
-        // Actualizar la sugerencia de hoy para esta materia
-        const subjectEl = subjectsEl.querySelector(`[data-id="${item.subject.id}"]`);
-        if (subjectEl) {
-            const todayText = subjectEl.querySelector('.today-text');
-            if (todayText) {
-                const icon = item.risk === 'red' ? '🔻' : item.risk === 'amber' ? '➖' : '✅';
-                todayText.textContent = `Hoy: ${item.hours.toFixed(1)} h  ·  ${icon}`;
-            }
-        }
-    });
 
     // Lista materias
     subjectsEl.innerHTML = '';
