@@ -39,3 +39,21 @@ async function saveState() {
         console.error('Error al guardar en el servidor:', error);
     }
 }
+
+
+function migrate(data) {
+    return {
+        capacityDaily: Number(data.capacityDaily) || 2.0,
+        typeTimes: data.typeTimes || {},
+        subjects: Array.isArray(data.subjects) ? data.subjects : []
+    };
+}
+
+function render() {
+    console.log('Render ejecutado. Materias:', state.subjects);
+    // Si querés mostrar algo visual:
+    const out = document.getElementById('subjects');
+    if (out) {
+        out.innerHTML = state.subjects.map(s => `<li>${s.name}</li>`).join('');
+    }
+}
