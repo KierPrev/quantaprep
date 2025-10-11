@@ -6,57 +6,67 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const DATA_PATH = path.join(__dirname, 'data.json');
+
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.static('.')); // Servir archivos estáticos
+app.use(express.json({ limit: '2mb' }));
+app.use(express.static(path.join(__dirname))); // ¡clave! servir desde la carpeta del server
 
-// Ruta para guardar datos en el servidor
+// Helper: writeFile atomic
+function writeJsonAtomic(filePath, dataObj) {
+    const tmpPath = filePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(dataObj, null, 2), 'utf8');
+    fs.renameSync(tmpPath, filePath);
+}
+
+// GET directo del JSON (mismo archivo que guardamos)
+app.get('/data.json', (req, res) => {
+    try {
+        if (fs.existsSync(DATA_PATH)) {
+            res.sendFile(DATA_PATH);
+        } else {
+            res.status(404).json({ error: 'No se encontraron datos guardados' });
+        }
+    } catch (err) {
+        console.error('Error sirviendo data.json:', err);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Guardar datos
 app.post('/api/save-data', (req, res) => {
     try {
         const data = req.body;
-
-        // Validar que los datos tengan la estructura esperada
         if (!data || typeof data !== 'object') {
             return res.status(400).json({ error: 'Datos inválidos' });
         }
-
-        // Crear el archivo JSON en el servidor
-        const filePath = path.join(__dirname, 'data.json');
-        const jsonData = JSON.stringify(data, null, 2);
-
-        fs.writeFileSync(filePath, jsonData, 'utf8');
-
-        console.log('Datos guardados en servidor:', filePath);
-        res.json({ success: true, message: 'Datos guardados exitosamente' });
-
+        writeJsonAtomic(DATA_PATH, data);
+        console.log('Datos guardados en:', DATA_PATH);
+        res.json({ success: true });
     } catch (error) {
         console.error('Error al guardar datos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-// Ruta para cargar datos desde el servidor
+// Cargar datos (API)
 app.get('/api/load-data', (req, res) => {
     try {
-        const filePath = path.join(__dirname, 'data.json');
-
-        if (fs.existsSync(filePath)) {
-            const data = fs.readFileSync(filePath, 'utf8');
-            const jsonData = JSON.parse(data);
-            res.json(jsonData);
+        if (fs.existsSync(DATA_PATH)) {
+            const txt = fs.readFileSync(DATA_PATH, 'utf8');
+            res.json(JSON.parse(txt));
         } else {
             res.status(404).json({ error: 'No se encontraron datos guardados' });
         }
-
     } catch (error) {
         console.error('Error al cargar datos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-// Ruta para obtener información del servidor
-app.get('/api/info', (req, res) => {
+// Info
+app.get('/api/info', (_req, res) => {
     res.json({
         message: 'Servidor QuantaPrep funcionando',
         version: '1.0.0',
@@ -65,5 +75,7 @@ app.get('/api/info', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor QuantaPrep ejecutándose en http://localhost:${PORT}`);
+    console.log(`Servidor QuantaPrep en http://localhost:${PORT}`);
+    console.log('Base dir:', __dirname);
+    console.log('DATA_PATH:', DATA_PATH);
 });
