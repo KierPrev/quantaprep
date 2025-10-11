@@ -2,7 +2,7 @@
 // QuantaPrep - app.js (completo)
 // =========================
 
-// ======= Persistencia (API) =======
+// ======= Persistencia (API) ========
 const API_LOAD = '/api/load-data';
 const API_SAVE = '/api/save-data';
 
