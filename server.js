@@ -20,6 +20,11 @@ function writeJsonAtomic(filePath, dataObj) {
     fs.renameSync(tmpPath, filePath);
 }
 
+// Endpoint de ping para detección automática
+app.get('/api/ping', (req, res) => {
+    res.json({ ok: true });
+});
+
 // GET directo del JSON (mismo archivo que guardamos)
 app.get('/data.json', (req, res) => {
     try {
@@ -34,8 +39,23 @@ app.get('/data.json', (req, res) => {
     }
 });
 
+// Cargar datos (API)
+app.get('/api/data', (req, res) => {
+    try {
+        if (fs.existsSync(DATA_PATH)) {
+            const txt = fs.readFileSync(DATA_PATH, 'utf8');
+            res.json(JSON.parse(txt));
+        } else {
+            res.json({});
+        }
+    } catch (error) {
+        console.error('Error al cargar datos:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Guardar datos
-app.post('/api/save-data', (req, res) => {
+app.post('/api/data', (req, res) => {
     try {
         const data = req.body;
         if (!data || typeof data !== 'object') {
@@ -46,21 +66,6 @@ app.post('/api/save-data', (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error al guardar datos:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-// Cargar datos (API)
-app.get('/api/load-data', (req, res) => {
-    try {
-        if (fs.existsSync(DATA_PATH)) {
-            const txt = fs.readFileSync(DATA_PATH, 'utf8');
-            res.json(JSON.parse(txt));
-        } else {
-            res.status(404).json({ error: 'No se encontraron datos guardados' });
-        }
-    } catch (error) {
-        console.error('Error al cargar datos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });

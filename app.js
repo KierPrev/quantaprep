@@ -2,9 +2,8 @@
 // QuantaPrep - app.js (completo)
 // =========================
 
-// ======= Persistencia (API) =======
-const API_LOAD = '/api/load-data';
-const API_SAVE = '/api/save-data';
+// ======= Persistencia (Store) =======
+let store = null;
 
 // ======= Defaults y Estado =======
 const DEFAULTS = {
@@ -65,18 +64,16 @@ const parseTimeInput = (val, unit) => {
 // ======= Carga inicial =======
 (async function init() {
     try {
-        const response = await fetch(API_LOAD);
-        if (response.ok) {
-            const data = await response.json();
-            if (data && Array.isArray(data.subjects)) {
-                state = migrate(data);
-                setBackupInfo('Cargado desde el servidor (data.json)');
-            }
+        store = await getStore();
+        const data = await store.load();
+        if (data && Array.isArray(data.subjects)) {
+            state = migrate(data);
+            setBackupInfo(`Cargado desde ${store.constructor.name}`);
         } else {
-            console.log('Sin datos previos (HTTP', response.status, '). Arrancando vacío.');
+            console.log('Sin datos previos. Arrancando vacío.');
         }
     } catch (error) {
-        console.log('Error cargando desde el servidor. Arranco vacío...', error);
+        console.log('Error cargando datos. Arranco vacío...', error);
     }
     wireUI(); // engancha listeners luego de que el DOM está disponible
     render();
@@ -91,15 +88,14 @@ function migrate(data) {
 }
 
 async function saveState() {
+    if (!store) return;
     try {
-        const response = await fetch(API_SAVE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(state)
-        });
-        if (!response.ok) console.error('Error al guardar datos (HTTP):', response.status);
+        const success = await store.save(state);
+        if (!success) {
+            console.error('Error al guardar datos');
+        }
     } catch (error) {
-        console.error('Error al guardar en el servidor:', error);
+        console.error('Error al guardar datos:', error);
     }
 }
 
