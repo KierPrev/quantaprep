@@ -501,6 +501,7 @@ select:focus {
     .card {
         margin: 0 var(--space-md) var(--space-lg);
         padding: var(--space-xl);
+        width: 100%;
     }
 
     /* Larger touch targets */
@@ -563,6 +564,7 @@ select:focus {
     .subject {
         padding: var(--space-xl);
         margin: 0 var(--space-md) var(--space-lg);
+        width: 100%;
     }
 
     .subject-head {
