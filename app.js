@@ -26,11 +26,21 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const uuid = () => Math.random().toString(36).slice(2, 9);
 
 const fmtDDMMYY = (iso) => {
-    const d = new Date(iso);
-    if (isNaN(d)) return '--/--/--';
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(-2);
+    // Parse the YYYY-MM-DD string directly without timezone conversion
+    if (!iso || typeof iso !== 'string') return '--/--/--';
+
+    const parts = iso.split('-');
+    if (parts.length !== 3) return '--/--/--';
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+
+    if (![year, month, day].every(Number.isFinite)) return '--/--/--';
+
+    const dd = String(day).padStart(2, '0');
+    const mm = String(month).padStart(2, '0');
+    const yy = String(year).slice(-2);
     return `${dd}-${mm}-${yy}`;
 };
 
