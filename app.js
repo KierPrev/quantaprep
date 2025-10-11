@@ -61,19 +61,78 @@ const parseTimeInput = (val, unit) => {
 
 // ==== Persistencia (debounce) ====
 let saveTimer = null;
+let storageMode = 'server'; // 'server' | 'localStorage'
+
+// Función para guardar en localStorage
+function saveToLocalStorage(data) {
+    try {
+        localStorage.setItem('quantaprep-data', JSON.stringify(data));
+        console.log('💾 Guardado en localStorage');
+        return true;
+    } catch (e) {
+        console.warn('⚠️ Error al guardar en localStorage:', e.message);
+        return false;
+    }
+}
+
+// Función para cargar desde localStorage
+function loadFromLocalStorage() {
+    try {
+        const stored = localStorage.getItem('quantaprep-data');
+        if (stored) {
+            const data = JSON.parse(stored);
+            console.log('📂 Cargado desde localStorage');
+            return data;
+        }
+    } catch (e) {
+        console.warn('⚠️ Error al cargar desde localStorage:', e.message);
+    }
+    return null;
+}
+
+// Función para verificar si el servidor está disponible
+async function isServerAvailable() {
+    try {
+        const response = await fetch(API_LOAD, {
+            method: 'HEAD',
+            cache: 'no-store',
+            timeout: 3000
+        });
+        return response.ok;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Guardar estado con fallback
 async function saveStateNow() {
+    // Primero intentar guardar en servidor
     try {
         const r = await fetch(API_SAVE, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(state)
         });
-        if (!r.ok) console.warn('⚠️ Error al guardar (HTTP):', r.status);
-        else console.log('💾 Guardado OK');
+        if (r.ok) {
+            console.log('💾 Guardado en servidor (data.json)');
+            storageMode = 'server';
+            setBackupInfo('Guardado en servidor (data.json)');
+            return;
+        }
     } catch (e) {
         console.warn('⚠️ No se pudo guardar en servidor:', e.message);
     }
+
+    // Fallback a localStorage
+    if (saveToLocalStorage(state)) {
+        storageMode = 'localStorage';
+        setBackupInfo('Guardado en localStorage (servidor no disponible)');
+    } else {
+        console.error('❌ No se pudo guardar en ningún almacenamiento');
+        setBackupInfo('Error: No se pudo guardar los datos');
+    }
 }
+
 function saveState() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveStateNow, 400);
@@ -454,22 +513,37 @@ function wireUI() {
 
 // ==== Carga inicial ====
 (async function init() {
+    // Primero intentar cargar desde servidor
     try {
         const r = await fetch(API_LOAD, { cache: 'no-store' });
         if (r.ok) {
             const data = await r.json();
             if (data && Array.isArray(data.subjects)) {
                 state = migrate(data);
-                setBackupInfo('Cargado desde el servidor (data.json)');
+                storageMode = 'server';
+                setBackupInfo('Cargado desde servidor (data.json)');
+                wireUI();
+                render();
+                return;
             }
-        } else {
-            console.log('Sin datos previos (HTTP', r.status, '). Arrancando vacío.');
-            setBackupInfo('Sin datos previos. Guardá para crear data.json');
         }
     } catch (error) {
-        console.log('Error cargando desde el servidor. Arranco vacío...', error);
-        setBackupInfo('Servidor sin datos o offline. Usando estado vacío.');
+        console.log('Servidor no disponible:', error.message);
     }
+
+    // Fallback: intentar cargar desde localStorage
+    const localData = loadFromLocalStorage();
+    if (localData && Array.isArray(localData.subjects)) {
+        state = migrate(localData);
+        storageMode = 'localStorage';
+        setBackupInfo('Cargado desde localStorage (servidor no disponible)');
+        console.log('📂 Usando datos de localStorage');
+    } else {
+        // Sin datos en ningún almacenamiento
+        console.log('Sin datos previos. Arrancando vacío.');
+        setBackupInfo('Sin datos previos. Guardá para crear data.json');
+    }
+
     wireUI();
     render();
 })();
