@@ -1,12 +1,5 @@
 // ======= Persistencia =======
-const LS_KEY = 'quantaprepV1';
-
-// Respaldo automático en OPFS (Origin Private File System)
-const OPFS_FILE = 'quanta-respaldo.json';
-let opfsAvailable = !!(navigator.storage && navigator.storage.getDirectory);
-
-// Archivo JSON local para guardar datos
-const LOCAL_DATA_FILE = 'data.json';
+const DATA_FILE = 'data.json';
 
 // ======= Defaults y Estado =======
 const DEFAULTS = {
@@ -56,111 +49,20 @@ const parseTimeInput = (val, unit) => {
     return unit === 'min' ? n / 60 : n;
 };
 
-// ======= OPFS helpers =======
-async function opfsWrite(jsonStr) {
-    try {
-        const root = await navigator.storage.getDirectory();
-        const fh = await root.getFileHandle(OPFS_FILE, { create: true });
-        const w = await fh.createWritable();
-        await w.write(new Blob([jsonStr], { type: 'application/json' }));
-        await w.close();
-        return true;
-    } catch { return false; }
-}
-async function opfsRead() {
-    try {
-        const root = await navigator.storage.getDirectory();
-        const fh = await root.getFileHandle(OPFS_FILE);
-        const file = await fh.getFile();
-        const text = await file.text();
-        return JSON.parse(text);
-    } catch { return null; }
-}
-
-// ======= Servidor JSON helpers =======
-async function saveToServer() {
-    try {
-        const response = await fetch('/api/save-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(state)
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            console.log('Datos guardados en servidor:', result.message);
-            return true;
-        } else {
-            console.error('Error del servidor al guardar datos');
-            return false;
-        }
-    } catch (error) {
-        console.error('Error al guardar en servidor:', error);
-        return false;
-    }
-}
-
-async function loadFromServer() {
-    try {
-        const response = await fetch('/api/load-data');
-
-        if (response.ok) {
-            const data = await response.json();
-            return data;
-        } else if (response.status === 404) {
-            console.log('No se encontraron datos en el servidor');
-            return null;
-        } else {
-            console.error('Error del servidor al cargar datos');
-            return null;
-        }
-    } catch (error) {
-        console.error('Error al cargar desde servidor:', error);
-        return null;
-    }
-}
-
-
 // ======= Carga inicial =======
 (async function init() {
-    // 1) Intentar cargar desde archivo JSON local
-    let loaded = false;
+    // Cargar desde archivo JSON local
     try {
-        const response = await fetch(LOCAL_DATA_FILE);
+        const response = await fetch(DATA_FILE);
         if (response.ok) {
             const data = await response.json();
             if (data && Array.isArray(data.subjects)) {
                 state = migrate(data);
-                loaded = true;
                 setBackupInfo('Cargado desde archivo local data.json');
             }
         }
     } catch (error) {
-        console.log('No se encontró archivo data.json local, continuando con otros métodos...');
-    }
-
-    // 2) Si no hubo archivo JSON válido, intentar OPFS
-    if (!loaded && opfsAvailable) {
-        const data = await opfsRead();
-        if (data && Array.isArray(data.subjects)) {
-            state = migrate(data);
-            loaded = true;
-            setBackupInfo('Respaldando en archivo local (OPFS).');
-        } else {
-            setBackupInfo('Creando respaldo local (OPFS) al guardar cambios…');
-        }
-    } else if (!loaded) {
-        setBackupInfo('Respaldo en localStorage (tu navegador).');
-    }
-
-    // 3) Si no hubo OPFS válido, intentar localStorage
-    if (!loaded) {
-        const raw = localStorage.getItem(LS_KEY);
-        if (raw) {
-            try { state = migrate(JSON.parse(raw)); } catch { }
-        }
+        console.log('No se encontró archivo data.json local, iniciando con datos vacíos...');
     }
 
     render();
@@ -176,12 +78,24 @@ function migrate(data) {
 }
 
 async function saveState() {
-    const json = JSON.stringify(state);
-    localStorage.setItem(LS_KEY, json);
-    if (opfsAvailable) { await opfsWrite(json); }
+    // Guardar automáticamente en el archivo JSON local
+    try {
+        const response = await fetch('/api/save-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(state)
+        });
 
-    // Guardar automáticamente en el servidor (y archivo JSON local)
-    await saveToServer();
+        if (response.ok) {
+            console.log('Datos guardados en data.json');
+        } else {
+            console.error('Error al guardar datos en data.json');
+        }
+    } catch (error) {
+        console.error('Error al guardar en data.json:', error);
+    }
 }
 
 // ======= Modelo de cálculo =======
@@ -340,13 +254,28 @@ function subjectRow(subject) {
     const r = risk(subject).color;
     dot.classList.add(r === 'red' ? 'risk-red' : r === 'amber' ? 'risk-amber' : 'risk-green');
 
-    // segmentos
+    // segmentos - mostrar progreso parcial
     const seg = tpl.querySelector('.segments');
     const total = Math.max(1, subject.parts.length);
     const done = subject.parts.filter(p => (p.progress ?? 0) >= 1).length;
+    const totalProgress = subject.parts.reduce((sum, p) => sum + (p.progress ?? 0), 0);
+    const filledSegments = Math.floor(totalProgress);
+    const partialProgress = totalProgress - filledSegments;
+
     for (let i = 0; i < total; i++) {
         const el = document.createElement('div');
-        el.className = 'segment' + (i < done ? ' filled' : '');
+        let className = 'segment';
+
+        if (i < filledSegments) {
+            // Segmento completamente lleno
+            className += ' filled';
+        } else if (i === filledSegments && partialProgress > 0) {
+            // Segmento parcialmente lleno
+            className += ' partial';
+            el.style.setProperty('--progress-width', `${partialProgress * 100}%`);
+        }
+
+        el.className = className;
         seg.appendChild(el);
     }
 

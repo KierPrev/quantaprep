@@ -183,7 +183,7 @@ button:focus-visible {
     gap: var(--space-lg);
 }
 
-/* Summary section */
+/*  section */
 #summary {
     margin-bottom: var(--space-2xl);
 }
@@ -250,6 +250,7 @@ button:focus-visible {
 .subject {
     padding: var(--space-lg);
     transition: all var(--transition-normal);
+    margin: 0 20px var(--space-lg);
 }
 
 .subject:hover {
@@ -305,10 +306,28 @@ button:focus-visible {
     border-radius: 3px;
     background: var(--system-border);
     transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
 }
 
 .segment.filled {
     background: var(--primary);
+}
+
+.segment.partial {
+    background: var(--system-border);
+}
+
+.segment.partial::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--primary);
+    width: var(--progress-width, 0%);
+    border-radius: 3px;
+    transition: width var(--transition-fast);
 }
 
 .meta-line {
