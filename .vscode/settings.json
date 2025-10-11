@@ -1,0 +1,13 @@
+{
+    "terminal.integrated.profiles.linux": {
+        "Distrobox Ubuntu24": {
+            "path": "/usr/bin/distrobox",
+            "args": [
+                "enter",
+                "Ubuntu24"
+            ],
+            "icon": "terminal-bash"
+        }
+    },
+    "terminal.integrated.defaultProfile.linux": "Distrobox Ubuntu24"
+}
