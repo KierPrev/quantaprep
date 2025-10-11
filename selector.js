@@ -20,7 +20,29 @@ async function getStore() {
         }
     }
 
-    // Si no hay parámetro, probar si el servidor está disponible
+    // Si no hay parámetro, verificar el entorno del servidor
+    try {
+        const response = await fetch('/api/environment', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            const env = await response.json();
+
+            if (env.isStatic) {
+                console.log('Servidor en entorno estático, usando LocalStorageStore');
+                return new LocalStorageStore();
+            } else {
+                console.log('Servidor en entorno dinámico, usando HttpStore');
+                return new HttpStore();
+            }
+        }
+    } catch (error) {
+        console.log('No se pudo obtener información del entorno, probando ping...');
+    }
+
+    // Fallback: probar ping tradicional
     try {
         const response = await fetch('/api/ping', {
             method: 'GET',
@@ -28,14 +50,14 @@ async function getStore() {
         });
 
         if (response.ok) {
-            console.log('Servidor disponible, usando HttpStore');
+            console.log('Servidor disponible (ping), usando HttpStore');
             return new HttpStore();
         }
     } catch (error) {
         console.log('Servidor no disponible, usando LocalStorageStore');
     }
 
-    // Fallback a localStorage
-    console.log('Usando LocalStorageStore (fallback)');
+    // Fallback final a localStorage
+    console.log('Usando LocalStorageStore (fallback final)');
     return new LocalStorageStore();
 }
