@@ -103,11 +103,91 @@ async function saveState() {
     }
 }
 
-// ======= Modelo de cálculo =======
+// ======= Sistema de Retroalimentación Inteligente =======
 function emaUpdate(type, tReal, alpha = 0.3) {
     const prev = state.typeTimes[type] ?? DEFAULTS.typeTimes['Otro'];
     const next = (1 - alpha) * prev + alpha * tReal;
     state.typeTimes[type] = clamp(next, 0.25, 6);
+
+    // Registrar el tiempo real para análisis histórico
+    if (!state.performanceHistory) state.performanceHistory = {};
+    if (!state.performanceHistory[type]) state.performanceHistory[type] = [];
+
+    state.performanceHistory[type].push({
+        timestamp: new Date().toISOString(),
+        estimated: prev,
+        actual: tReal,
+        ratio: tReal / prev
+    });
+
+    // Mantener solo los últimos 50 registros por tipo
+    if (state.performanceHistory[type].length > 50) {
+        state.performanceHistory[type] = state.performanceHistory[type].slice(-50);
+    }
+}
+
+// Nueva función para calcular confianza en las estimaciones
+function getEstimationConfidence(type) {
+    if (!state.performanceHistory || !state.performanceHistory[type]) {
+        return { confidence: 0.5, samples: 0, avgRatio: 1.0 };
+    }
+
+    const history = state.performanceHistory[type];
+    if (history.length < 3) {
+        return { confidence: 0.5, samples: history.length, avgRatio: 1.0 };
+    }
+
+    // Calcular la variabilidad de los ratios (actual/estimado)
+    const ratios = history.map(h => h.ratio);
+    const avgRatio = ratios.reduce((sum, r) => sum + r, 0) / ratios.length;
+    const variance = ratios.reduce((sum, r) => sum + Math.pow(r - avgRatio, 2), 0) / ratios.length;
+
+    // La confianza es inversamente proporcional a la variabilidad
+    // Más muestras = más confianza, menos variabilidad = más confianza
+    const baseConfidence = Math.max(0.1, 1 - Math.sqrt(variance));
+    const sampleFactor = Math.min(1, history.length / 20); // Máxima confianza con 20 muestras
+    const confidence = baseConfidence * sampleFactor;
+
+    return {
+        confidence: Math.round(confidence * 100) / 100,
+        samples: history.length,
+        avgRatio: Math.round(avgRatio * 100) / 100
+    };
+}
+
+// Función mejorada para estimar horas que considera la confianza
+function smartEstimateHoursRemaining(subject) {
+    const w = DEFAULTS.difWeights;
+    let rem = 0;
+    let totalConfidence = 0;
+    let confidenceSamples = 0;
+
+    subject.parts.forEach(p => {
+        const tType = state.typeTimes[p.type] ?? state.typeTimes['Otro'];
+        const confidence = getEstimationConfidence(p.type);
+
+        // Ajustar estimación basada en el rendimiento histórico
+        const adjustedTime = tType * (confidence.avgRatio || 1.0);
+        const partHours = (adjustedTime * (w[p.diff] ?? 1.0)) * (1 - (p.progress ?? 0));
+
+        rem += partHours;
+        totalConfidence += confidence.confidence;
+        confidenceSamples++;
+    });
+
+    const avgConfidence = confidenceSamples > 0 ? totalConfidence / confidenceSamples : 0.5;
+
+    // Ajustar el rango de estimación basado en la confianza
+    // Menos confianza = rango más amplio
+    const confidenceFactor = 1 - avgConfidence; // 0 = alta confianza, 0.5 = baja confianza
+    const range = 0.15 + (confidenceFactor * 0.35); // 15% a 50% de rango
+
+    return {
+        lo: +(rem * (1 - range)).toFixed(1),
+        mid: +rem.toFixed(1),
+        hi: +(rem * (1 + range)).toFixed(1),
+        confidence: Math.round(avgConfidence * 100) / 100
+    };
 }
 
 function estimateHoursRemaining(subject) {
@@ -122,7 +202,7 @@ function estimateHoursRemaining(subject) {
 
 function risk(subject) {
     const d = Math.max(1, daysUntil(subject.examISO));
-    const est = estimateHoursRemaining(subject).mid;
+    const est = smartEstimateHoursRemaining(subject).mid;
     const cap = Math.max(0.25, state.capacityDaily);
     const R = est / (d * cap);
     let color = 'green'; if (R > 1.2) color = 'red'; else if (R > 0.8) color = 'amber';
@@ -147,7 +227,7 @@ function distributeHoursToday() {
     return subjectWeights.map(item => {
         const proportion = item.weight / totalWeight;
         const hours = proportion * totalCapacity;
-        const est = estimateHoursRemaining(item.subject).mid;
+        const est = smartEstimateHoursRemaining(item.subject).mid;
         const finalHours = Math.min(hours, est);
         return { subject: item.subject, hours: +finalHours.toFixed(1), risk: item.risk };
     });
@@ -308,8 +388,9 @@ function openDetail(id) {
 }
 
 function updateETABox(s) {
-    const est = estimateHoursRemaining(s);
-    byId('m-eta').textContent = `Faltan: ${est.lo}–${est.hi} h`;
+    const est = smartEstimateHoursRemaining(s);
+    const confidenceText = est.confidence > 0.7 ? "✓" : est.confidence > 0.4 ? "~" : "?";
+    byId('m-eta').textContent = `Faltan: ${est.lo}–${est.hi} h ${confidenceText}`;
 }
 
 function drawPartsList(subject) {
