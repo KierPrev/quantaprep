@@ -164,29 +164,57 @@ function migrate(data) {
 
 // ==== Modelo de cálculo ====
 function estimateHoursRemaining(subject) {
-    const w = DEFAULTS.difWeights;
-    let rem = 0;
-    subject.parts.forEach(p => {
-        const tType = state.typeTimes[p.type] ?? state.typeTimes['Otro'];
-        rem += (tType * (w[p.diff] ?? 1.0)) * (1 - (p.progress ?? 0));
+    // FÓRMULA: Horas_restantes = Σ [ (Tiempo_tipo × Peso_dificultad) × (1 - Progreso) ]
+    // Tiempo_tipo: TP=3.0h, Problemas=1.5h, Teoría=3.5h, Lectura=1.0h, Otro=1.0h
+    // Peso_dificultad: baja=1.0, media=2.0, alta=3.0
+    // Progreso: 0 a 1 (0% a 100%)
+
+    // IMPLEMENTACIÓN: Para cada parte, calcular: (tiempo_tipo × peso_dificultad) × (1 - progreso)
+    let totalHours = 0;
+    subject.parts.forEach(part => {
+        const tiempoTipo = state.typeTimes[part.type] ?? state.typeTimes['Otro'];
+        const pesoDificultad = DEFAULTS.difWeights[part.diff] ?? 1.0;
+        const progreso = part.progress ?? 0;
+
+        // FÓRMULA APLICADA: (tiempo_tipo × peso_dificultad) × (1 - progreso)
+        totalHours += (tiempoTipo * pesoDificultad) * (1 - progreso);
     });
-    return { lo: +(rem * 0.85).toFixed(1), mid: +rem.toFixed(1), hi: +(rem * 1.25).toFixed(1) };
+
+    // Rango estimado: ±15% del valor medio
+    return {
+        lo: +(totalHours * 0.85).toFixed(1),
+        mid: +totalHours.toFixed(1),
+        hi: +(totalHours * 1.25).toFixed(1)
+    };
 }
 
+
 function risk(subject, distributedHours = null) {
-    const d = Math.max(1, daysUntil(subject.examISO));
-    const est = estimateHoursRemaining(subject).mid;
+    const diasHastaExamen = Math.max(1, daysUntil(subject.examISO));
+    const horasRestantes = estimateHoursRemaining(subject).mid;
 
     // Use distributed hours if provided, otherwise fall back to daily capacity
-    let cap;
+    let capacidad;
     if (distributedHours !== null && distributedHours > 0) {
-        cap = distributedHours;
+        capacidad = distributedHours;
     } else {
-        cap = Math.max(0.25, state.capacityDaily);
+        capacidad = Math.max(0.25, state.capacityDaily);
     }
 
-    const R = est / (d * cap);
-    let color = 'green'; if (R > 1.2) color = 'red'; else if (R > 0.8) color = 'amber';
+    // FÓRMULA DE RIESGO: (Horas_restantes / Capacidad_diaria) × Factor_urgencia
+    // Factor_urgencia: 1 + (10 / (días_hasta_examen + 1)) - Aumenta SIGNIFICATIVAMENTE con menos días
+    const factorUrgencia = 1 + (10 / (diasHastaExamen + 1)); // Más agresivo para priorizar urgente
+
+    // Riesgo base: horas restantes vs capacidad diaria
+    const riesgoBase = horasRestantes / capacidad;
+
+    // Aplicar factor de urgencia al riesgo
+    const R = riesgoBase * factorUrgencia;
+
+    let color = 'green';
+    if (R > 1.2) color = 'red';
+    else if (R > 0.8) color = 'amber';
+
     return { R, color };
 }
 
@@ -195,16 +223,27 @@ function distributeHoursToday() {
     const totalCapacity = state.capacityDaily;
     if (subjects.length === 0) return [];
 
-    // Check for urgent subjects (exam today or tomorrow)
-    const urgentSubjects = subjects.filter(s => daysUntil(s.examISO) <= 1);
+    // MODIFICACIÓN: Aumentar el umbral de urgencia y prioridad
+    const urgentSubjects = subjects.filter(s => daysUntil(s.examISO) <= 5); // Aumentar a 5 días
     if (urgentSubjects.length > 0) {
         // Sort urgent subjects by days until exam (today first)
         urgentSubjects.sort((a, b) => daysUntil(a.examISO) - daysUntil(b.examISO));
-        // Allocate 100% capacity to the most urgent subject
-        const mostUrgent = urgentSubjects[0];
-        const est = estimateHoursRemaining(mostUrgent).mid;
-        const hours = Math.min(totalCapacity, est);
-        return [{ subject: mostUrgent, hours: +hours.toFixed(1), risk: risk(mostUrgent, hours).color }];
+
+        // MODIFICACIÓN: Dar MÁS prioridad a lo urgente - 90% para urgentes
+        const urgentCapacity = Math.min(totalCapacity * 0.9, totalCapacity); // 90% para urgentes
+        const normalCapacity = totalCapacity - urgentCapacity;
+
+        // Calcular distribución entre urgentes
+        const urgentDistribution = distributeAmongUrgent(urgentSubjects, urgentCapacity);
+
+        // Si hay capacidad restante, distribuir entre materias normales
+        if (normalCapacity > 0 && subjects.length > urgentSubjects.length) {
+            const normalSubjects = subjects.filter(s => daysUntil(s.examISO) > 5);
+            const normalDistribution = distributeAmongNormal(normalSubjects, normalCapacity);
+            return [...urgentDistribution, ...normalDistribution];
+        }
+
+        return urgentDistribution;
     }
 
     // No urgent subjects, use original logic
@@ -220,6 +259,48 @@ function distributeHoursToday() {
     return items.map(it => {
         const prop = it.weight / totalW;
         const hours = prop * totalCapacity;
+        const est = estimateHoursRemaining(it.subject).mid;
+        return { subject: it.subject, hours: +Math.min(hours, est).toFixed(1), risk: it.risk };
+    });
+}
+
+// Nueva función: Distribuir entre materias urgentes
+function distributeAmongUrgent(urgentSubjects, capacity) {
+    // Dar más peso a las materias más urgentes
+    let totalWeight = 0;
+    const weightedSubjects = urgentSubjects.map(s => {
+        const daysLeft = daysUntil(s.examISO);
+        const weight = 1 / (daysLeft + 1); // Más peso a menos días
+        totalWeight += weight;
+        return { subject: s, weight, daysLeft };
+    });
+
+    return weightedSubjects.map(ws => {
+        const prop = ws.weight / totalWeight;
+        const hours = prop * capacity;
+        const est = estimateHoursRemaining(ws.subject).mid;
+        return {
+            subject: ws.subject,
+            hours: +Math.min(hours, est).toFixed(1),
+            risk: risk(ws.subject, hours).color
+        };
+    });
+}
+
+// Nueva función: Distribuir entre materias normales
+function distributeAmongNormal(normalSubjects, capacity) {
+    const riskWeights = { 'red': 3.0, 'amber': 1.5, 'green': 1.0 };
+    let totalW = 0;
+    const items = normalSubjects.map(s => {
+        const r = risk(s).color;
+        const w = riskWeights[r];
+        totalW += w;
+        return { subject: s, weight: w, risk: r };
+    });
+
+    return items.map(it => {
+        const prop = it.weight / totalW;
+        const hours = prop * capacity;
         const est = estimateHoursRemaining(it.subject).mid;
         return { subject: it.subject, hours: +Math.min(hours, est).toFixed(1), risk: it.risk };
     });
