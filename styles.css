@@ -1,17 +1,17 @@
 /* Apple-inspired Design System */
 :root {
     /* Colors - Apple-inspired palette */
-    --system-bg: #f5f5f7;
+    --system-bg: #f2f2f7;
     --system-fg: #1d1d1f;
-    --system-muted: #86868b;
+    --system-muted: #8e8e93;
     --system-card: #ffffff;
-    --system-border: #d2d2d7;
-    --system-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-    --system-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.04);
+    --system-border: #c6c6c8;
+    --system-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --system-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
 
     /* Semantic colors */
-    --primary: #0071e3;
-    --primary-hover: #0077ed;
+    --primary: #007aff;
+    --primary-hover: #007aff;
     --success: #34c759;
     --warning: #ff9500;
     --danger: #ff3b30;
@@ -26,21 +26,42 @@
     /* Spacing */
     --space-xs: 4px;
     --space-sm: 8px;
-    --space-md: 12px;
-    --space-lg: 16px;
-    --space-xl: 20px;
-    --space-2xl: 24px;
-    --space-3xl: 32px;
+    --space-md: 16px;
+    --space-lg: 20px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+    --space-3xl: 40px;
 
     /* Border radius */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 20px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
 
     /* Transitions */
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.25s ease;
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Colors - Dark mode palette */
+        --system-bg: #000000;
+        --system-fg: #ffffff;
+        --system-muted: #98989d;
+        --system-card: #1c1c1e;
+        --system-border: #38383a;
+        --system-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --system-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+
+        /* Semantic colors */
+        --primary: #0a84ff;
+        --primary-hover: #0a84ff;
+        --success: #30d158;
+        --warning: #ff9f0a;
+        --danger: #ff453a;
+    }
 }
 
 /* Reset and base styles */
@@ -89,7 +110,7 @@ h3 {
 }
 
 .small {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.38462;
 }
 
@@ -106,16 +127,55 @@ h3 {
     align-items: center;
     justify-content: space-between;
     padding: var(--space-lg) var(--space-xl);
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 1px solid var(--system-border);
-    margin-bottom: var(--space-lg);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: var(--space-2xl);
+}
+
+@media (prefers-color-scheme: dark) {
+    .topbar {
+        background: rgba(0, 0, 0, 0.8);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
 }
 
 .topbar .actions {
     display: flex;
-    gap: var(--space-sm);
+    gap: var(--space-lg);
     align-items: center;
+}
+
+.total-pending {
+    font-size: 16px;
+    font-weight: var(--font-weight-medium);
+    color: var(--system-fg);
+    background: rgba(0, 0, 0, 0.05);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    .total-pending {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+}
+
+.total-pending strong {
+    font-size: 18px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary);
+}
+
+.cap input {
+    width: 80px;
+    padding: var(--space-sm);
+    border: 1px solid var(--system-border);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    text-align: center;
 }
 
 /* Buttons */
@@ -174,8 +234,8 @@ button:focus-visible {
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
     margin: 0 var(--space-xl) var(--space-lg);
-    box-shadow: var(--system-shadow-sm);
-    border: 1px solid var(--system-border);
+    box-shadow: var(--system-shadow);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .stack {
@@ -188,73 +248,20 @@ button:focus-visible {
     margin-bottom: var(--space-2xl);
 }
 
-.exam-list {
-    margin-bottom: var(--space-lg);
-}
+/* Removed exam list styles - now unified with subject cards */
 
-.exam-list li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-md) 0;
-    border-bottom: 1px solid var(--system-border);
-}
-
-.exam-list li:last-child {
-    border-bottom: none;
-}
-
-.exam-item-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.dot.red {
-    background: var(--danger);
-}
-
-.dot.amber {
-    background: var(--warning);
-}
-
-.dot.green {
-    background: var(--success);
-}
-
-.today {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: var(--space-md);
-    border-top: 1px solid var(--system-border);
-}
-
-.today .cap input {
-    width: 80px;
-    padding: var(--space-sm);
-    border: 1px solid var(--system-border);
-    border-radius: var(--radius-sm);
-    font-size: 15px;
-}
+/* Today section moved to topbar */
 
 
 /* Subject cards */
 .subject {
     padding: var(--space-lg);
     transition: all var(--transition-normal);
-    margin: 0 20px var(--space-lg);
+    margin: 0 var(--space-xl) var(--space-lg);
 }
 
 .subject:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: var(--system-shadow);
 }
 
@@ -301,17 +308,34 @@ button:focus-visible {
 }
 
 .segment {
-    height: 6px;
+    height: 32px;
     flex: 1;
-    border-radius: 3px;
-    background: var(--system-border);
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.08);
     transition: all var(--transition-fast);
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: var(--font-weight-medium);
+    color: var(--system-fg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .segment {
+        background: rgba(255, 255, 255, 0.1);
+    }
 }
 
 .segment.filled {
     background: var(--primary);
+    color: white;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .segment.partial {
@@ -328,6 +352,11 @@ button:focus-visible {
     width: var(--progress-width, 0%);
     border-radius: 3px;
     transition: width var(--transition-fast);
+    z-index: 1;
+}
+
+.segment.partial {
+    color: var(--system-fg);
 }
 
 .meta-line {
@@ -544,40 +573,9 @@ select:focus {
         justify-content: space-between;
     }
 
-    /* Improved exam list for mobile */
-    .exam-list li {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-sm);
-        padding: var(--space-lg) 0;
-    }
+    /* Exam list styles removed - now unified with subject cards */
 
-    .exam-item-left {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-    .dot {
-        width: 12px;
-        height: 12px;
-        /* Larger dots for visibility */
-    }
-
-    /* Today section improvements */
-    .today {
-        flex-direction: column;
-        gap: var(--space-lg);
-        align-items: center;
-        text-align: center;
-        padding-top: var(--space-lg);
-    }
-
-    .today .cap input {
-        width: 100px;
-        padding: var(--space-md);
-        font-size: 16px;
-        min-height: 44px;
-    }
+    /* Today section moved to topbar - no mobile styles needed */
 
     /* Subject cards mobile improvements */
     .subject {
@@ -676,7 +674,7 @@ select:focus {
     }
 
     .small {
-        font-size: 14px;
+        font-size: 15px;
     }
 
     /* Improved spacing */
@@ -685,8 +683,11 @@ select:focus {
     }
 
     .segment {
-        height: 8px;
-        /* Thicker segments */
+        height: 36px;
+        /* Apple-style segments */
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.06);
+        border-radius: var(--radius-sm);
     }
 }
 
@@ -722,11 +723,11 @@ select:focus {
     }
 }
 
-/* Animation for new elements */
+/* Subtle animations */
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
 
     to {
@@ -736,7 +737,7 @@ select:focus {
 }
 
 .subject {
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.4s ease;
 }
 
 /* Logo styling */

@@ -16,23 +16,15 @@
       QuantaPrep - Mis exámenes
     </h1>
     <div class="actions">
+      <span class="total-pending">Total pendiente: <strong id="todayTotal">0.0 h</strong></span>
+      <label class="cap">
+        Horas al día:
+        <input id="capacityInput" type="number" step="0.25" min="0" />
+      </label>
       <button id="btn-add" class="primary">+ Nueva</button>
     </div>
   </header>
 
-  <section id="summary" class="card">
-    <h2>📅 Próximos</h2>
-    <ul id="examList" class="exam-list"></ul>
-    <div class="today">
-      <span>Hoy: <strong id="todayTotal">0.0 h</strong></span>
-      <label class="cap">
-        Horas al día:
-        <input id="capacityInput" type="number" step="0.25" min="0" />
-        h
-      </label>
-    </div>
-    <p id="backupInfo" class="small muted"></p>
-  </section>
 
   <main id="subjects" class="stack"></main>
 

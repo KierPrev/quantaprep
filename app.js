@@ -133,7 +133,6 @@ async function saveStateNow() {
         if (r.ok) {
             console.log('💾 Guardado en servidor (data.json)');
             storageMode = 'server';
-            setBackupInfo('Guardado en servidor (data.json)');
             return;
         }
     } catch (e) {
@@ -143,10 +142,8 @@ async function saveStateNow() {
     // Fallback a localStorage
     if (saveToLocalStorage(state)) {
         storageMode = 'localStorage';
-        setBackupInfo('Guardado en localStorage (servidor no disponible)');
     } else {
         console.error('❌ No se pudo guardar en ningún almacenamiento');
-        setBackupInfo('Error: No se pudo guardar los datos');
     }
 }
 
@@ -164,10 +161,6 @@ function migrate(data) {
     };
 }
 
-function setBackupInfo(txt) {
-    const el = byId('backupInfo');
-    if (el) el.textContent = txt || '';
-}
 
 // ==== Modelo de cálculo ====
 function estimateHoursRemaining(subject) {
@@ -201,6 +194,20 @@ function distributeHoursToday() {
     const subjects = state.subjects;
     const totalCapacity = state.capacityDaily;
     if (subjects.length === 0) return [];
+
+    // Check for urgent subjects (exam today or tomorrow)
+    const urgentSubjects = subjects.filter(s => daysUntil(s.examISO) <= 1);
+    if (urgentSubjects.length > 0) {
+        // Sort urgent subjects by days until exam (today first)
+        urgentSubjects.sort((a, b) => daysUntil(a.examISO) - daysUntil(b.examISO));
+        // Allocate 100% capacity to the most urgent subject
+        const mostUrgent = urgentSubjects[0];
+        const est = estimateHoursRemaining(mostUrgent).mid;
+        const hours = Math.min(totalCapacity, est);
+        return [{ subject: mostUrgent, hours: +hours.toFixed(1), risk: risk(mostUrgent, hours).color }];
+    }
+
+    // No urgent subjects, use original logic
     const riskWeights = { 'red': 3.0, 'amber': 1.5, 'green': 1.0 };
     let totalW = 0;
     const items = subjects.map(s => {
@@ -249,7 +256,6 @@ function quickAddHours(subject, hours) {
 }
 
 // ==== Render ====
-const examList = byId('examList');
 const subjectsEl = byId('subjects');
 const todayTotalEl = byId('todayTotal');
 const capacityInput = byId('capacityInput');
@@ -271,33 +277,14 @@ function render() {
     // ordenar por riesgo/fecha
     state.subjects.sort(sortSubjects);
 
-    // resumen exámenes
-    if (examList) {
-        examList.innerHTML = '';
-        const distributed = distributeHoursToday();
-        state.subjects.forEach(s => {
-            const li = document.createElement('li');
-            const d = daysUntil(s.examISO);
-            const est = estimateHoursRemaining(s);
-            const it = distributed.find(x => x.subject.id === s.id);
-            const hours = it ? it.hours : 0;
-            const color = risk(s, hours).color;
-            li.innerHTML = `
-        <div class="exam-item-left">
-          <span class="dot ${color === 'red' ? 'red' : color === 'amber' ? 'amber' : 'green'}"></span>
-          <strong>${fmtDDMMYY(s.examISO)} — ${s.name}</strong>
-          <span class="small">(${d}d)</span>
-        </div>
-        <span class="small">${partsText(s)} · Est. ${est.lo}–${est.hi} h</span>
-      `;
-            examList.appendChild(li);
-        });
-    }
+    // resumen exámenes - removido, ahora solo en las tarjetas individuales
 
-    // total sugerido hoy
-    const distributed = distributeHoursToday();
-    const total = distributed.reduce((acc, it) => acc + it.hours, 0);
-    if (todayTotalEl) todayTotalEl.textContent = `${total.toFixed(1)} h`;
+    // total mínimo necesario para completar todo al 100%
+    const totalMinHours = state.subjects.reduce((acc, s) => {
+        const est = estimateHoursRemaining(s);
+        return acc + est.mid;
+    }, 0);
+    if (todayTotalEl) todayTotalEl.textContent = `${totalMinHours.toFixed(1)} h`;
 
     // materias
     if (subjectsEl) {
@@ -325,7 +312,7 @@ function subjectRow(subject) {
     const r = risk(subject, hours).color;
     dot.classList.add(r === 'red' ? 'risk-red' : r === 'amber' ? 'risk-amber' : 'risk-green');
 
-    // segmentos con parcial
+    // segmentos con parcial y nombres
     const seg = tpl.querySelector('.segments');
     const total = Math.max(1, subject.parts.length);
     const totalProgress = subject.parts.reduce((sum, p) => sum + (p.progress ?? 0), 0);
@@ -341,6 +328,24 @@ function subjectRow(subject) {
             el.style.setProperty('--progress-width', `${partial * 100}%`);
         }
         el.className = cls;
+        el.textContent = subject.parts[i]?.name || `Parte ${i + 1}`;
+        el.title = subject.parts[i]?.name || `Parte ${i + 1}`; // tooltip
+
+        // Double click to edit part name
+        el.addEventListener('dblclick', () => {
+            const currentName = subject.parts[i]?.name || `Parte ${i + 1}`;
+            const newName = prompt('Editar nombre de la parte:', currentName);
+            if (newName !== null && newName.trim() !== '') {
+                if (subject.parts[i]) {
+                    subject.parts[i].name = newName.trim();
+                } else {
+                    subject.parts[i] = { name: newName.trim(), type: 'TP', diff: 'media', progress: 0 };
+                }
+                saveState();
+                render();
+            }
+        });
+
         seg.appendChild(el);
     }
 
@@ -559,7 +564,6 @@ function wireUI() {
             if (data && Array.isArray(data.subjects)) {
                 state = migrate(data);
                 storageMode = 'server';
-                setBackupInfo('Cargado desde servidor (data.json)');
                 wireUI();
                 render();
                 return;
@@ -574,12 +578,10 @@ function wireUI() {
     if (localData && Array.isArray(localData.subjects)) {
         state = migrate(localData);
         storageMode = 'localStorage';
-        setBackupInfo('Cargado desde localStorage (servidor no disponible)');
         console.log('📂 Usando datos de localStorage');
     } else {
         // Sin datos en ningún almacenamiento
         console.log('Sin datos previos. Arrancando vacío.');
-        setBackupInfo('Sin datos previos. Guardá para crear data.json');
     }
 
     wireUI();
