@@ -201,15 +201,11 @@ function risk(subject, distributedHours = null) {
         capacidad = Math.max(0.25, state.capacityDaily);
     }
 
-    // FÓRMULA DE RIESGO: (Horas_restantes / Capacidad_diaria) × Factor_urgencia
-    // Factor_urgencia: 1 + (10 / (días_hasta_examen + 1)) - Aumenta SIGNIFICATIVAMENTE con menos días
-    const factorUrgencia = 1 + (10 / (diasHastaExamen + 1)); // Más agresivo para priorizar urgente
-
-    // Riesgo base: horas restantes vs capacidad diaria
-    const riesgoBase = horasRestantes / capacidad;
-
-    // Aplicar factor de urgencia al riesgo
-    const R = riesgoBase * factorUrgencia;
+    // FÓRMULA DE RIESGO: Horas_restantes / (Días_hasta_examen × Capacidad_diaria)
+    // Si R > 1.2: rojo (no hay suficiente tiempo)
+    // Si R > 0.8: ámbar (apretado)
+    // Sino: verde (suficiente tiempo)
+    const R = horasRestantes / (diasHastaExamen * capacidad);
 
     let color = 'green';
     if (R > 1.2) color = 'red';
